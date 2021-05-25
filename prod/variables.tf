@@ -14,3 +14,8 @@ variable "region" {
     description = "aws region"
     type = string
 }
+
+variable "web_key_name" {
+    description = "key name of the web server"
+    type = string
+}

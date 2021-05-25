@@ -17,3 +17,13 @@ output "security_groups_ids" {
     description = "a map of the name and the id of a  securit group"
     value = module.infrastructure.security_groups_ids
 }
+
+output "instances_id" {
+    description = "a map of instances names and ids"
+    value = module.infrastructure.instances_id
+}
+
+output "instances_public_ips" {
+    description = "a map of instances names and public ips"
+    value = module.infrastructure.instances_public_ips
+}

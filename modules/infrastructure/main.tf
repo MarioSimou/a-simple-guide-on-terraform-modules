@@ -13,8 +13,8 @@ locals {
 
 resource "aws_vpc" "vpc" {
     cidr_block = var.cidr_block
-    enable_dns_support = false
-    enable_dns_hostnames = false
+    enable_dns_support = true
+    enable_dns_hostnames = true
 
     tags = {
         environment = var.environment
@@ -79,11 +79,11 @@ resource "aws_security_group" "sgs" {
   for_each = var.security_groups
 
   vpc_id = aws_vpc.vpc.id
-  name = format("%s-%s-%s", var.org, var.environment, each.key)
+  name = format("%s-%s-%s-sg", var.org, var.environment, each.key)
 
   tags = {
     environment = var.environment
-    Name = format("%s-%s-%s", var.org, var.environment, each.key)
+    Name = format("%s-%s-%s-sg", var.org, var.environment, each.key)
   }
 }
 
@@ -96,4 +96,47 @@ resource "aws_security_group_rule" "sgs_rules" {
   to_port = element(local.security_groups_rules, count.index).to_port
   protocol = element(local.security_groups_rules, count.index).protocol
   cidr_blocks = element(local.security_groups_rules, count.index).cidr_blocks
+}
+
+locals {
+  public_servers_names = [for serverName, options in var.instances: serverName if options.public ]
+  servers_name_ids_map = zipmap(
+        [for instanceName, options in var.instances: instanceName],
+        [for server in aws_instance.servers: server.id]
+    )
+}
+
+resource "aws_eip" "eips" {
+  count = length(local.public_servers_names)
+
+  instance = lookup(
+    local.servers_name_ids_map,
+    element(local.public_servers_names, count.index)
+  )
+  vpc = true
+}
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+}
+
+resource "aws_instance" "servers" {
+  for_each = var.instances
+  
+  ami = data.aws_ami.ubuntu.id
+  instance_type = each.value.instance_type
+  key_name = each.value.key_name
+  subnet_id = local.subnets_ids[0]
+  vpc_security_group_ids = [ lookup(local.security_groups_id_name_map, each.key) ]
+
+  tags = {
+    environment = var.environment
+    Name = format("%s-%s-%s-server", var.org, var.environment, each.key)
+  }
 }

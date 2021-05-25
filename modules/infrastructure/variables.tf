@@ -38,3 +38,8 @@ variable "security_groups" {
     description = "a list of security groups"
     type = map
 }
+
+variable "instances" {
+    description = "a map of ec2 instances and options"
+    type = map
+}
